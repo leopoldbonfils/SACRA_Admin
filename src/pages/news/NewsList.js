@@ -1,135 +1,356 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/layout/PageHeader';
-import Table from '../../components/common/Table';
-import SearchBar from '../../components/common/SearchBar';
-import Pagination from '../../components/common/Pagination';
-import Button from '../../components/common/Button';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
-import useFetch from '../../hooks/useFetch';
-import usePagination from '../../hooks/usePagination';
-import useDebounce from '../../hooks/useDebounce';
-import newsService from '../../services/newsService';
 import { ROUTES, buildPath } from '../../routes/routeConfig';
-import { formatDate } from '../../utils/formatDate';
-import { CONTENT_STATUS } from '../../utils/constants';
 
-/**
- * NewsList – paginated, searchable list of news articles.
- */
+/* ─── Static demo articles ─────────────────────────────────── */
+const DEMO_ARTICLES = [
+  {
+    _id: '1', title: 'New Breakthroughs in Perioperative Pain…',
+    sub: 'Published by Research Council',
+    category: 'Research',  categoryColor: '#dbeafe', categoryText: '#1d4ed8',
+    avatar: 'AC', avatarBg: '#2563eb', author: 'Dr. Alice Chen',
+    date: 'Oct 24, 2023', status: 'Published', thumb: null,
+  },
+  {
+    _id: '2', title: 'Upcoming SACRA Annual Symposium…',
+    sub: 'Scheduled releasing Jan 15',
+    category: 'Events',    categoryColor: '#d1fae5', categoryText: '#065f46',
+    avatar: 'JH', avatarBg: '#059669', author: 'John Harrison',
+    date: 'Jan 16, 2024', status: 'Scheduled', thumb: null,
+  },
+  {
+    _id: '3', title: 'Draft: Collaborative Protocol for Pediatric…',
+    sub: 'Last saved 2 hours ago',
+    category: 'Clinical Updates', categoryColor: '#fef3c7', categoryText: '#92400e',
+    avatar: 'SK', avatarBg: '#f59e0b', author: 'Sarah Kapoor',
+    date: 'Oct 28, 2023', status: 'Draft', thumb: null,
+  },
+  {
+    _id: '4', title: 'Announcement: New Membership Tiers f…',
+    sub: 'Published 3 days ago',
+    category: 'Announcements', categoryColor: '#ede9fe', categoryText: '#6d28d9',
+    avatar: 'SA', avatarBg: '#7c3aed', author: 'SACRA Admin',
+    date: 'Oct 26, 2023', status: 'Published', thumb: null,
+  },
+];
+
+/* ─── Status badge ──────────────────────────────────────────── */
+const StatusBadge = ({ status }) => {
+  const cfg = {
+    Published:  { bg: '#d1fae5', color: '#065f46' },
+    Draft:      { bg: '#fef3c7', color: '#92400e' },
+    Scheduled:  { bg: '#dbeafe', color: '#1d4ed8' },
+    Archived:   { bg: '#f1f5f9', color: '#475569' },
+  }[status] || { bg: '#f1f5f9', color: '#475569' };
+  return (
+    <span style={{
+      padding: '3px 12px', borderRadius: 20,
+      background: cfg.bg, color: cfg.color,
+      fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+    }}>
+      {status}
+    </span>
+  );
+};
+
+/* ─── Category pill ─────────────────────────────────────────── */
+const CategoryPill = ({ label, bg, color }) => (
+  <span style={{
+    padding: '3px 10px', borderRadius: 20,
+    background: bg, color: color,
+    fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+  }}>
+    {label}
+  </span>
+);
+
+/* ─── Avatar initials ───────────────────────────────────────── */
+const Avatar = ({ initials, bg }) => (
+  <div style={{
+    width: 30, height: 30, borderRadius: '50%', background: bg,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0,
+  }}>
+    {initials}
+  </div>
+);
+
+/* ─── NewsList page ─────────────────────────────────────────── */
 const NewsList = () => {
   const navigate = useNavigate();
-  const [search, setSearch]         = useState('');
-  const [deleteId, setDeleteId]     = useState(null);
-  const [deleting, setDeleting]     = useState(false);
-  const debouncedSearch             = useDebounce(search, 400);
+  const [search,   setSearch]   = useState('');
+  const [category, setCategory] = useState('All Categories');
+  const [status,   setStatus]   = useState('All');
+  const [selected, setSelected] = useState([]);
 
-  const { data, loading, error, refetch } = useFetch(
-    () => newsService.getAll({ search: debouncedSearch }),
-    [debouncedSearch]
-  );
+  const categories = ['All Categories', 'Research', 'Events', 'Clinical Updates', 'Announcements'];
+  const statuses   = ['All', 'Published', 'Draft', 'Scheduled', 'Archived'];
 
-  const allNews = data?.items || data || [];
+  /* filter */
+  const filtered = DEMO_ARTICLES.filter((a) => {
+    const q   = search.toLowerCase();
+    const byQ = !q || a.title.toLowerCase().includes(q) || a.author.toLowerCase().includes(q);
+    const byCat = category === 'All Categories' || a.category === category;
+    const byS   = status === 'All' || a.status === status;
+    return byQ && byCat && byS;
+  });
 
-  const {
-    paginatedData, currentPage, totalPages, totalItems,
-    startItem, endItem, pageRange, goToPage, canNext, canPrev,
-  } = usePagination(allNews);
-
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await newsService.remove(deleteId);
-      setDeleteId(null);
-      refetch();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const statusBadge = (status) => {
-    const map = {
-      [CONTENT_STATUS.PUBLISHED]: 'badge-success',
-      [CONTENT_STATUS.DRAFT]:     'badge-warning',
-      [CONTENT_STATUS.ARCHIVED]:  'badge-gray',
-    };
-    return <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>;
-  };
-
-  const columns = [
-    { key: 'title',     header: 'Title',       render: (row) => <span style={{ fontWeight: 500 }}>{row.title}</span> },
-    { key: 'category',  header: 'Category',    render: (row) => row.category || '—' },
-    { key: 'status',    header: 'Status',      render: (row) => statusBadge(row.status), width: 120 },
-    { key: 'createdAt', header: 'Published',   render: (row) => formatDate(row.createdAt), width: 130 },
-    {
-      key: 'actions', header: '', width: 120,
-      render: (row) => (
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); navigate(buildPath(ROUTES.NEWS_EDIT, { id: row._id })); }}>Edit</Button>
-          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteId(row._id); }} style={{ color: 'var(--color-danger)' }}>Delete</Button>
-        </div>
-      ),
-    },
-  ];
+  const toggleAll  = () => setSelected(selected.length === filtered.length ? [] : filtered.map((a) => a._id));
+  const toggleOne  = (id) => setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   return (
-    <div className="page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
-      <PageHeader
-        title="News"
-        subtitle="Manage all news articles and announcements."
-        breadcrumbs={[{ label: 'Dashboard', to: ROUTES.DASHBOARD }, { label: 'News' }]}
-        actions={
-          <Button variant="primary" onClick={() => navigate(ROUTES.NEWS_CREATE)}>
-            + New Article
-          </Button>
-        }
-      />
+    <div className="page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>News Management</h1>
+          <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+            Manage the Students Anesthetic Collaborative Research Association news feed.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate(ROUTES.NEWS_CREATE)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '10px 20px', border: 'none', borderRadius: 10,
+            background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+            color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          + Add News
+        </button>
+      </div>
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          onClear={() => setSearch('')}
-          placeholder="Search articles…"
-        />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {/* Search */}
+        <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: 320 }}>
+          <svg style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
+            width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search articles by title or author…"
+            style={{
+              width: '100%', padding: '9px 12px 9px 34px',
+              border: '1.5px solid #e2e8f0', borderRadius: 10,
+              background: '#fff', color: '#0f172a', fontSize: 13,
+              fontFamily: 'inherit', outline: 'none',
+            }}
+          />
+        </div>
+
+        {/* Category */}
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          style={{
+            padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 10,
+            background: '#fff', color: '#374151', fontSize: 13, fontFamily: 'inherit',
+            outline: 'none', cursor: 'pointer',
+          }}>
+          {categories.map((c) => <option key={c}>{c}</option>)}
+        </select>
+
+        {/* Status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Status:</span>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            style={{
+              padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 10,
+              background: '#fff', color: '#374151', fontSize: 13, fontFamily: 'inherit',
+              outline: 'none', cursor: 'pointer',
+            }}>
+            {statuses.map((s) => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+
+        {/* Date range placeholder */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '9px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10,
+          background: '#fff', cursor: 'pointer', fontSize: 13, color: '#64748b',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          Date Range
+        </div>
+
+        {/* Bulk actions */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          {selected.length > 0 && (
+            <span style={{ fontSize: 13, color: '#64748b', alignSelf: 'center' }}>
+              {selected.length} selected
+            </span>
+          )}
+          <select
+            disabled={selected.length === 0}
+            style={{
+              padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 10,
+              background: selected.length ? '#fff' : '#f8fafc',
+              color: '#374151', fontSize: 13, fontFamily: 'inherit', outline: 'none',
+            }}>
+            <option>Bulk Actions</option>
+            <option>Publish</option>
+            <option>Archive</option>
+            <option>Delete</option>
+          </select>
+          {/* Icons */}
+          <button style={{ padding: '9px', border: '1.5px solid #e2e8f0', borderRadius: 10, background: '#fff', cursor: 'pointer', color: '#64748b' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </button>
+          <button style={{ padding: '9px', border: '1.5px solid #e2e8f0', borderRadius: 10, background: '#fff', cursor: 'pointer', color: '#64748b' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Table */}
-      <Table
-        columns={columns}
-        data={paginatedData}
-        loading={loading}
-        rowKey="_id"
-        onRowClick={(row) => navigate(buildPath(ROUTES.NEWS_VIEW, { id: row._id }))}
-      />
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <th style={{ padding: '12px 16px', width: 40 }}>
+                <input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0}
+                  onChange={toggleAll} style={{ accentColor: '#2563eb' }}/>
+              </th>
+              {['Article','Category','Author','Date','Status','Actions'].map((h) => (
+                <th key={h} style={{
+                  padding: '12px 16px', textAlign: 'left',
+                  fontSize: 11, fontWeight: 700, color: '#94a3b8',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((article) => (
+              <tr
+                key={article._id}
+                style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.1s' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                onMouseLeave={(e) => e.currentTarget.style.background = ''}
+                onClick={() => navigate(buildPath(ROUTES.NEWS_VIEW, { id: article._id }))}
+              >
+                {/* Checkbox */}
+                <td style={{ padding: '14px 16px' }} onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={selected.includes(article._id)}
+                    onChange={() => toggleOne(article._id)} style={{ accentColor: '#2563eb' }}/>
+                </td>
+
+                {/* Article */}
+                <td style={{ padding: '14px 16px', minWidth: 220 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 8, flexShrink: 0,
+                      background: 'linear-gradient(135deg, #e0e7ff, #dbeafe)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
+                        <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 0-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
+                        <path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {article.title}
+                      </p>
+                      <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{article.sub}</p>
+                    </div>
+                  </div>
+                </td>
+
+                {/* Category */}
+                <td style={{ padding: '14px 16px' }}>
+                  <CategoryPill label={article.category} bg={article.categoryColor} color={article.categoryText}/>
+                </td>
+
+                {/* Author */}
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Avatar initials={article.avatar} bg={article.avatarBg}/>
+                    <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{article.author}</span>
+                  </div>
+                </td>
+
+                {/* Date */}
+                <td style={{ padding: '14px 16px', fontSize: 13, color: '#64748b', whiteSpace: 'nowrap' }}>
+                  {article.date}
+                </td>
+
+                {/* Status */}
+                <td style={{ padding: '14px 16px' }}>
+                  <StatusBadge status={article.status}/>
+                </td>
+
+                {/* Actions */}
+                <td style={{ padding: '14px 16px' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      onClick={() => navigate(buildPath(ROUTES.NEWS_EDIT, { id: article._id }))}
+                      title="Edit"
+                      style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#2563eb', fontSize: 12, fontWeight: 600 }}>
+                      Edit
+                    </button>
+                    <button
+                      title="View"
+                      onClick={() => navigate(buildPath(ROUTES.NEWS_VIEW, { id: article._id }))}
+                      style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#64748b', fontSize: 12 }}>
+                      View
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Pagination */}
-      {!loading && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          startItem={startItem}
-          endItem={endItem}
-          pageRange={pageRange}
-          onPageChange={goToPage}
-          canNext={canNext}
-          canPrev={canPrev}
-        />
-      )}
-
-      {/* Delete confirmation */}
-      <ConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Delete Article"
-        message="Are you sure you want to delete this article? This action cannot be undone."
-      />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <p style={{ fontSize: 13, color: '#64748b' }}>
+          Showing 1 to {filtered.length} of 42 articles
+        </p>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {[1, 2, 3, '…', 5].map((p, i) => (
+            <button key={i} style={{
+              width: 34, height: 34, border: '1.5px solid #e2e8f0', borderRadius: 8,
+              background: p === 1 ? '#2563eb' : '#fff',
+              color: p === 1 ? '#fff' : '#374151',
+              fontWeight: p === 1 ? 700 : 400,
+              fontSize: 13, cursor: 'pointer',
+            }}>
+              {p}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+          Results per page:
+          <select style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none' }}>
+            <option>10</option><option>20</option><option>50</option>
+          </select>
+        </div>
+      </div>
     </div>
   );
 };
