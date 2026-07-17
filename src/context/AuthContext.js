@@ -25,6 +25,12 @@ export const AuthProvider = ({ children }) => {
     return data;
   }, []);
 
+  const register = useCallback(async (userData) => {
+    const data = await authService.register(userData);
+    setUser(data.user);
+    return data;
+  }, []);
+
   const logout = useCallback(() => {
     authService.logout();
     setUser(null);
@@ -39,7 +45,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

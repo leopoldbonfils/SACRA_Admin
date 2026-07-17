@@ -1,12 +1,11 @@
-﻿import api from './api';
-import { buildQueryString } from '../utils/helpers';
+import api from './api';
 
 const researchService = {
-  getAll:   (params = {}) => api.get(/research\),
-  getById:  (id)          => api.get(/research/\),
+  getAll:   (params = {}) => api.get('/research', { params }),
+  getById:  (id)          => api.get(`/research/${id}`),
   create:   (data)        => api.post('/research', data),
-  update:   (id, data)    => api.put(/research/\, data),
-  remove:   (id)          => api.delete(/research/\),
-  publish:  (id)          => api.patch(/research/\/publish),
+  update:   (id, data)    => api.put(`/research/${id}`, data),
+  remove:   (id)          => api.delete(`/research/${id}`),
+  publish:  (id)          => api.patch(`/research/${id}/publish`),
 };
 export default researchService;

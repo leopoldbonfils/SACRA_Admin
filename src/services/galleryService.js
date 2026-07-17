@@ -1,14 +1,13 @@
-﻿import api from './api';
-import { buildQueryString } from '../utils/helpers';
+import api from './api';
 
 const galleryService = {
-  getAll:       (params = {}) => api.get(/gallery\),
-  getById:      (id)          => api.get(/gallery/\),
+  getAll:       (params = {}) => api.get('/gallery', { params }),
+  getById:      (id)          => api.get(`/gallery/${id}`),
   upload:       (formData)    => api.post('/gallery/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  update:       (id, data)    => api.put(/gallery/\, data),
-  remove:       (id)          => api.delete(/gallery/\),
+  update:       (id, data)    => api.put(`/gallery/${id}`, data),
+  remove:       (id)          => api.delete(`/gallery/${id}`),
   getAlbums:    ()            => api.get('/gallery/albums'),
   createAlbum:  (data)        => api.post('/gallery/albums', data),
-  deleteAlbum:  (id)          => api.delete(/gallery/albums/\),
+  deleteAlbum:  (id)          => api.delete(`/gallery/albums/${id}`),
 };
 export default galleryService;

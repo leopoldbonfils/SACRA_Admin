@@ -1,13 +1,12 @@
-﻿import api from './api';
-import { buildQueryString } from '../utils/helpers';
+import api from './api';
 
 const newsService = {
-  getAll:   (params = {}) => api.get(/news\),
-  getById:  (id)          => api.get(/news/\),
+  getAll:   (params = {}) => api.get('/news', { params }),
+  getById:  (id)          => api.get(`/news/${id}`),
   create:   (data)        => api.post('/news', data),
-  update:   (id, data)    => api.put(/news/\, data),
-  remove:   (id)          => api.delete(/news/\),
-  publish:  (id)          => api.patch(/news/\/publish),
-  archive:  (id)          => api.patch(/news/\/archive),
+  update:   (id, data)    => api.put(`/news/${id}`, data),
+  remove:   (id)          => api.delete(`/news/${id}`),
+  publish:  (id)          => api.patch(`/news/${id}/publish`),
+  archive:  (id)          => api.patch(`/news/${id}/archive`),
 };
 export default newsService;

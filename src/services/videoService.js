@@ -1,11 +1,10 @@
-﻿import api from './api';
-import { buildQueryString } from '../utils/helpers';
+import api from './api';
 
 const videoService = {
-  getAll:   (params = {}) => api.get(/videos\),
-  getById:  (id)          => api.get(/videos/\),
+  getAll:   (params = {}) => api.get('/videos', { params }),
+  getById:  (id)          => api.get(`/videos/${id}`),
   create:   (data)        => api.post('/videos', data),
-  update:   (id, data)    => api.put(/videos/\, data),
-  remove:   (id)          => api.delete(/videos/\),
+  update:   (id, data)    => api.put(`/videos/${id}`, data),
+  remove:   (id)          => api.delete(`/videos/${id}`),
 };
 export default videoService;

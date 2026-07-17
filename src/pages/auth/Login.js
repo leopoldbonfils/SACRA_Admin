@@ -214,8 +214,16 @@ const Login = () => {
           </button>
         </form>
 
+        {/* Register redirect */}
+        <p style={{ marginTop: 20, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
+          Don't have an account?{' '}
+          <Link to={ROUTES.REGISTER} style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+            Register here
+          </Link>
+        </p>
+
         {/* Support link */}
-        <p style={{ marginTop: 32, fontSize: 13, color: '#94a3b8', textAlign: 'center' }}>
+        <p style={{ marginTop: 20, fontSize: 13, color: '#94a3b8', textAlign: 'center' }}>
           Need assistance?{' '}
           <a href="mailto:support@sacra.org" style={{ color: '#2563eb', fontWeight: 500 }}>
             Contact IT Support

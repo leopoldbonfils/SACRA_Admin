@@ -8,6 +8,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 /* ── Lazy-loaded pages ─────────────────────────────────────── */
 // Auth
 const Login          = lazy(() => import('../pages/auth/Login'));
+const Register       = lazy(() => import('../pages/auth/Register'));
 const ForgotPassword = lazy(() => import('../pages/auth/ForgotPassword'));
 const ResetPassword  = lazy(() => import('../pages/auth/ResetPassword'));
 
@@ -77,6 +78,7 @@ const AppRoutes = () => (
     <Routes>
       {/* ── Public routes ── */}
       <Route path={ROUTES.LOGIN}           element={<Login />} />
+      <Route path={ROUTES.REGISTER}        element={<Register />} />
       <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
       <Route path={ROUTES.RESET_PASSWORD}  element={<ResetPassword />} />
 

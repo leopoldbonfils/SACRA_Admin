@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../routes/routeConfig';
+import galleryService from '../../services/galleryService';
 
 const DEMO_ASSETS = [
   {
@@ -71,17 +72,97 @@ const DEMO_ASSETS = [
   },
 ];
 
+
 const GalleryList = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('Images');
-  const [selectedAsset, setSelectedAsset] = useState(DEMO_ASSETS[0]);
+  const [selectedAsset, setSelectedAsset] = useState(null);
+  const [assets, setAssets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   const tabs = ['Images', 'Videos', 'Documents', 'Logos'];
+
+  const fetchAssets = async () => {
+    setLoading(true);
+    try {
+      // Map activeTab to category query parameter
+      const data = await galleryService.getAll({ search, category: activeTab });
+      setAssets(data);
+      if (data.length > 0) {
+        setSelectedAsset(data[0]);
+      } else {
+        setSelectedAsset(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch media assets:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssets();
+  }, [search, activeTab]);
+
+  const handleUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', activeTab);
+
+    setUploading(true);
+    try {
+      await galleryService.upload(formData);
+      await fetchAssets();
+    } catch (err) {
+      alert(err.message || 'Failed to upload media file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedAsset) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedAsset.name}?`)) return;
+
+    try {
+      await galleryService.remove(selectedAsset.id);
+      await fetchAssets();
+    } catch (err) {
+      alert(err.message || 'Failed to delete asset');
+    }
+  };
+
+  // Helper for item icon representation
+  const getIcon = (type, name) => {
+    if (type && type.startsWith('image/')) return '🖼️';
+    if (type && type.startsWith('video/')) return '🎥';
+    if (name && name.endsWith('.pdf')) return '📄';
+    return '📁';
+  };
 
   return (
     <div className="page-enter" style={{ fontFamily: "'Inter', sans-serif", background: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: 20 }}>
       
+      {/* Hidden file input */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        style={{ display: 'none' }} 
+      />
+
       {/* Top Header Row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -106,13 +187,14 @@ const GalleryList = () => {
           </div>
         </div>
         <button
-          onClick={() => navigate(ROUTES.GALLERY_UPLOAD)}
+          onClick={handleUploadClick}
+          disabled={uploading}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '9px 18px', border: 'none', borderRadius: 10,
             background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
           }}>
-          📥 Upload Media
+          {uploading ? 'Uploading...' : '📥 Upload Media'}
         </button>
       </div>
 
@@ -154,36 +236,32 @@ const GalleryList = () => {
         
         {/* Left Side: Media Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, alignContent: 'start', position: 'relative' }}>
-          {DEMO_ASSETS.map((asset) => {
-            const isSelected = selectedAsset?.id === asset.id;
-            return (
-              <div
-                key={asset.id}
-                onClick={() => setSelectedAsset(asset)}
-                style={{
-                  height: 130, borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
-                  border: isSelected ? '3px solid #2563eb' : '1px solid #e2e8f0',
-                  boxShadow: isSelected ? '0 0 0 2px rgba(37,99,235,0.15)' : 'none',
-                  background: asset.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 40, transition: 'all 0.15s',
-                }}
-              >
-                {asset.icon}
-              </div>
-            );
-          })}
-          
-          {/* Circular add button at bottom right of the panel */}
-          <button style={{
-            position: 'absolute', bottom: 12, right: 12,
-            width: 44, height: 44, borderRadius: '50%',
-            background: '#047857', border: 'none', color: '#fff',
-            fontSize: 20, fontWeight: 700, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 10px rgba(4,120,87,0.3)',
-          }}>
-            +
-          </button>
+          {loading ? (
+            <div style={{ gridColumn: 'span 3', padding: 32, textAlign: 'center', color: '#64748b' }}>Loading assets...</div>
+          ) : assets.length === 0 ? (
+            <div style={{ gridColumn: 'span 3', padding: 32, textAlign: 'center', color: '#64748b' }}>No assets found in this category.</div>
+          ) : (
+            assets.map((asset) => {
+              const isSelected = selectedAsset?.id === asset.id;
+              const isImg = asset.type && asset.type.startsWith('image/');
+              return (
+                <div
+                  key={asset.id}
+                  onClick={() => setSelectedAsset(asset)}
+                  style={{
+                    height: 130, borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
+                    border: isSelected ? '3px solid #2563eb' : '1px solid #e2e8f0',
+                    boxShadow: isSelected ? '0 0 0 2px rgba(37,99,235,0.15)' : 'none',
+                    background: isImg ? `url(${asset.url}) center/cover no-repeat` : 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 40, transition: 'all 0.15s',
+                  }}
+                >
+                  {!isImg && getIcon(asset.type, asset.name)}
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Right Side: Sidebar Asset Details */}
@@ -196,11 +274,12 @@ const GalleryList = () => {
 
             {/* Asset Preview box */}
             <div style={{
-              height: 150, borderRadius: 10, background: selectedAsset.gradient,
+              height: 150, borderRadius: 10, 
+              background: selectedAsset.type?.startsWith('image/') ? `url(${selectedAsset.url}) center/cover no-repeat` : 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 48,
             }}>
-              {selectedAsset.icon}
+              {!selectedAsset.type?.startsWith('image/') && getIcon(selectedAsset.type, selectedAsset.name)}
             </div>
 
             {/* Detail Rows */}
@@ -236,16 +315,16 @@ const GalleryList = () => {
 
               <div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date Uploaded</span>
-                <p style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginTop: 2 }}>{selectedAsset.date}</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginTop: 2 }}>
+                  {new Date(selectedAsset.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                </p>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button style={{ width: '100%', padding: '10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                Update Details
-              </button>
-              <button style={{ width: '100%', padding: '10px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              <button style={{ width: '100%', padding: '10px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                onClick={handleDelete}>
                 🗑️ Delete Asset
               </button>
             </div>

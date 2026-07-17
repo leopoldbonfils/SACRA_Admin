@@ -20,6 +20,20 @@ const authService = {
   },
 
   /**
+   * Register a new user profile.
+   * @param {object} userData
+   * @returns {Promise<{ user: object, token: string }>}
+   */
+  register: async (userData) => {
+    const data = await api.post('/auth/register', userData);
+    if (data.token) {
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    }
+    return data;
+  },
+
+  /**
    * Logout – clear local storage.
    */
   logout: () => {

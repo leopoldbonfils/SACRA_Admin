@@ -1,17 +1,53 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../routes/routeConfig';
+import newsService from '../../services/newsService';
 
 const CreateNews = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('Breakthroughs in Obstetric Anesthesia Safety: A 2024 Retrospective');
   const [category, setCategory] = useState('Member News');
   const [author, setAuthor] = useState('Dr. Sarah Jenkins');
-  const [status, setStatus] = useState('DRAFTING');
-  const [visibility, setVisibility] = useState('Public');
+  const [status, setStatus] = useState('Draft');
   const [seoTitle, setSeoTitle] = useState('Anesthesia Breakthroughs 2024 | S');
-  const [metaDesc, setMetaDesc] = useState('Explore the latest collaborative findings in obstetric anesthesia safety protocols for the upcoming year featuring research from the');
+  const [metaDesc, setMetaDesc] = useState('Explore the latest collaborative findings in obstetric anesthesia safety protocols.');
   const [slug, setSlug] = useState('breakthroughs-obstetric-anesthesia-2024');
+  const [content, setContent] = useState(`
+    <p>The landscape of obstetric anesthesia is undergoing a paradigm shift, driven by a series of high-impact collaborative research projects. Our latest findings suggest that integrating real-time hemodynamic monitoring into standard labor analgesia protocols can reduce adverse maternal events by up to 14%.</p>
+    <p>"It's not just about the technique," says lead researcher Dr. Elena Rossi, "it's about the systemic application of evidence-based safety checklists across diverse clinical environments."</p>
+    <h4 style="color: #1e3a8a; font-weight: 700; font-size: 14px; margin: 8px 0;">Systematic Improvements</h4>
+    <p>During the 2023 SACRA Global Summit, the committee identified several key areas for standardization. The following points outline the most critical updates for the coming year:</p>
+    <ul style="list-style-type: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+      <li>Enhanced recovery after cesarean delivery (ERAC) protocols.</li>
+      <li>Standardization of neuraxial anesthesia dosage for high-BMI patients.</li>
+      <li>Integration of tele-supervision for rural healthcare practitioners.</li>
+    </ul>
+  `);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async (publishedStatus) => {
+    setLoading(true);
+    setError('');
+    try {
+      await newsService.create({
+        title,
+        sub: category + ' Update',
+        content,
+        category,
+        author,
+        status: publishedStatus,
+        slug,
+        seoTitle,
+        metaDesc
+      });
+      navigate(ROUTES.NEWS);
+    } catch (err) {
+      setError(err.message || 'Failed to create article');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="page-enter" style={{ fontFamily: "'Inter', sans-serif", background: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -114,28 +150,20 @@ const CreateNews = () => {
               </select>
             </div>
 
-            {/* Editable Content */}
-            <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 16, fontSize: 14, color: '#334155', lineHeight: 1.7, minHeight: 300 }}>
-              <p>
-                The landscape of obstetric anesthesia is undergoing a paradigm shift, driven by a series of high-impact collaborative research projects. Our latest findings suggest that integrating real-time hemodynamic monitoring into standard labor analgesia protocols can reduce adverse maternal events by up to 14%.
-              </p>
-              <p>
-                "It's not just about the technique," says lead researcher Dr. Elena Rossi, "it's about the systemic application of evidence-based safety checklists across diverse clinical environments."
-              </p>
-              <h4 style={{ color: '#1e3a8a', fontWeight: 700, fontSize: 14, margin: '8px 0' }}>Systematic Improvements</h4>
-              <p>
-                During the 2023 SACRA Global Summit, the committee identified several key areas for standardization. The following points outline the most critical updates for the coming year:
-              </p>
-              <ul style={{ listStyleType: 'disc', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <li>Enhanced recovery after cesarean delivery (ERAC) protocols.</li>
-                <li>Standardization of neuraxial anesthesia dosage for high-BMI patients.</li>
-                <li>Integration of tele-supervision for rural healthcare practitioners.</li>
-              </ul>
-              
-              <div style={{ marginTop: 20, background: '#eff6ff', borderLeft: '4px solid #3b82f6', padding: 12, borderRadius: 4, fontStyle: 'italic', color: '#1e40af' }}>
-                Note for Editors: Ensure the accompanying dataset is linked in the "Scientific Background" section before final publishing.
+            {error && (
+              <div style={{ padding: 12, background: '#fee2e2', color: '#ef4444', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
+                {error}
               </div>
-            </div>
+            )}
+
+            {/* Editable Content */}
+            <div 
+              contentEditable={!loading}
+              onBlur={(e) => setContent(e.currentTarget.innerHTML)}
+              suppressContentEditableWarning={true}
+              style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 16, fontSize: 14, color: '#334155', lineHeight: 1.7, minHeight: 300, outline: 'none' }}
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
           </div>
         </div>
 
@@ -151,7 +179,7 @@ const CreateNews = () => {
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 13, color: '#64748b' }}>Current Status</span>
-              <span style={{ background: '#dbeafe', color: '#1d4ed8', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>DRAFTING</span>
+              <span style={{ background: '#dbeafe', color: '#1d4ed8', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>{status.toUpperCase()}</span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -160,12 +188,20 @@ const CreateNews = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <button style={{ padding: '8px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>Save Draft</button>
+              <button 
+                onClick={() => handleSave('Draft')}
+                disabled={loading}
+                style={{ padding: '8px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                {loading ? 'Saving...' : 'Save Draft'}
+              </button>
               <button style={{ padding: '8px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>👁️ Preview</button>
             </div>
 
-            <button style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg, #1d4ed8, #1e40af)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              Publish to Live Site
+            <button 
+              onClick={() => handleSave('Published')}
+              disabled={loading}
+              style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg, #1d4ed8, #1e40af)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              {loading ? 'Publishing...' : 'Publish to Live Site'}
             </button>
           </div>
 
