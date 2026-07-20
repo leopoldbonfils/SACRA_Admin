@@ -5,8 +5,8 @@ const WebsiteSettings = () => {
   const [metaTitle, setMetaTitle] = useState('SACRA | Global Anesthetist Re...');
   const [metaDesc, setMetaDesc] = useState('The leading association for student anesthetists engaged in global collaborative research and clinical studies.');
   const [analyticsId, setAnalyticsId] = useState('G-XXXXXXXXXX');
-  const [mission, setMission] = useState('To empower students and early-career anesthetists through rigorous collaborative research, peer-led education, and global networking to improve patient outcomes in perioperative care.');
-  const [vision, setVision] = useState('To become the world\'s most influential student-led research body in anesthesia, setting gold standards for collaborative investigation and academic publishing.');
+  const [mission, setMission] = useState('To promote safe anesthesia practices, foster a culture of research, and engage in impactful community outreach to improve public health outcomes.');
+  const [vision, setVision] = useState('To be a leading student association that empowers future anesthetists to become innovators, leaders, and advocates for global health equity.');
   const [email, setEmail] = useState('admin@sacra-research.org');
   const [phone, setPhone] = useState('+44 20 7946 0123');
   const [address, setAddress] = useState('12-14 Medical Innovation Centre, King\'s Cross, London, WC1X 9AA');
